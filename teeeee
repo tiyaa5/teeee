@@ -1,0 +1,163 @@
+#include <iostream>
+#include <vector>
+#include <string>
+#include <unordered_map>
+#include <fstream>
+#include <sstream>  // Include for std::stringstream
+
+class Student {
+public:
+    std::string name;
+    int id;
+
+    Student(std::string name, int id) : name(name), id(id) {}
+};
+
+class AttendanceManager {
+private:
+    std::vector<Student> students;
+    std::unordered_map<int, std::vector<bool>> attendance; // Student ID -> Attendance record
+    const std::string filename = "attendance_records.txt";
+
+public:
+    AttendanceManager() {
+        loadFromFile();
+    }
+
+    ~AttendanceManager() {
+        saveToFile();
+    }
+
+    void addStudent(const std::string &name, int id) {
+        if (attendance.find(id) != attendance.end()) {
+            std::cout << "Student ID already exists!" << std::endl;
+            return;
+        }
+
+        students.emplace_back(name, id);
+        attendance[id] = std::vector<bool>();
+    }
+
+    void markAttendance(int id, bool present) {
+        if (attendance.find(id) == attendance.end()) {
+            std::cout << "Student not found!" << std::endl;
+            return;
+        }
+        attendance[id].push_back(present);
+    }
+
+    void displayAttendance(int id) {
+        if (attendance.find(id) == attendance.end()) {
+            std::cout << "Student not found!" << std::endl;
+            return;
+        }
+
+        for (const auto &student : students) {
+            if (student.id == id) {
+                std::cout << "Attendance record for " << student.name << " (ID: " << id << "):" << std::endl;
+                break;
+            }
+        }
+
+        for (size_t i = 0; i < attendance[id].size(); ++i) {
+            std::cout << "Day " << (i + 1) << ": " << (attendance[id][i] ? "Present" : "Absent") << std::endl;
+        }
+    }
+
+    void displayAllStudents() {
+        if (students.empty()) {
+            std::cout << "No students found!" << std::endl;
+            return;
+        }
+        for (const auto &student : students) {
+            std::cout << "ID: " << student.id << ", Name: " << student.name << std::endl;
+        }
+    }
+
+    void saveToFile() {
+        std::ofstream ofs(filename);
+        if (!ofs) {
+            std::cerr << "Error opening file for writing!" << std::endl;
+            return;
+        }
+
+        for (const auto &student : students) {
+            ofs << student.id << "," << student.name << std::endl;
+            for (bool pres : attendance[student.id]) {
+                ofs << (pres ? "1" : "0") << ",";
+            }
+            ofs << std::endl;
+        }
+        ofs.close();
+    }
+
+    void loadFromFile() {
+        std::ifstream ifs(filename);
+        if (!ifs) {
+            return; // If the file does not exist, just return
+        }
+
+        std::string line;
+        while (std::getline(ifs, line)) {
+            size_t pos = 0;
+            int id = std::stoi(line.substr(0, line.find(',')));
+            std::string name = line.substr(line.find(',') + 1);
+            
+            addStudent(name, id); // Add student
+
+            // Read attendance records
+            if (std::getline(ifs, line)) {
+                std::stringstream ss(line);
+                std::string status;
+                while (std::getline(ss, status, ',')) {
+                    attendance[id].push_back(status == "1");
+                }
+            }
+        }
+        ifs.close();
+    }
+};
+
+int main() {
+    AttendanceManager manager;
+    int choice;
+
+    do {
+        std::cout << "\nAttendance Management System\n";
+        std::cout << "1. Add Student\n";
+        std::cout << "2. Mark Attendance\n";
+        std::cout << "3. Display Attendance\n";
+        std::cout << "4. Display All Students\n";
+        std::cout << "5. Exit\n";
+        std::cout << "Choose an option: ";
+        std::cin >> choice;
+
+        if (choice == 1) {
+            std::string name;
+            int id;
+            std::cout << "Enter student name: ";
+            std::cin.ignore(); // Ignore leftover newline character
+            std::getline(std::cin, name); // Use getline for full names
+            std::cout << "Enter student ID: ";
+            std::cin >> id;
+            manager.addStudent(name, id);
+        } else if (choice == 2) {
+            int id;
+            bool present;
+            std::cout << "Enter student ID: ";
+            std::cin >> id;
+            std::cout << "Mark present (1 for yes, 0 for no): ";
+            std::cin >> present;
+            manager.markAttendance(id, present);
+        } else if (choice == 3) {
+            int id;
+            std::cout << "Enter student ID: ";
+            std::cin >> id;
+            manager.displayAttendance(id);
+        } else if (choice == 4) {
+            manager.displayAllStudents();
+        }
+    } while (choice != 5);
+
+    return 0;
+}
